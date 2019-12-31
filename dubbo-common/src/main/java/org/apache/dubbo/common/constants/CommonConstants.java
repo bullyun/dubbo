@@ -246,7 +246,7 @@ public interface CommonConstants {
     String METRICS_PROTOCOL = "metrics.protocol";
 
     /**
-     * After simplify the registry, should add some paramter individually for provider.
+     * After simplify the registry, should add some parameter individually for provider.
      *
      * @since 2.7.0
      */
@@ -261,6 +261,8 @@ public interface CommonConstants {
     String GENERIC_RAW_RETURN = "raw.return";
 
     String GENERIC_SERIALIZATION_PROTOBUF = "protobuf-json";
+
+    String GENERIC_WITH_CLZ_KEY = "generic.include.class";
 
     /**
      * The limit of callback service instances for one interface on every client
