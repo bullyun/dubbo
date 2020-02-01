@@ -43,12 +43,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Collectors;
 
 import static org.apache.dubbo.common.config.configcenter.Constants.CONFIG_NAMESPACE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.ANYHOST_VALUE;
-import static org.apache.dubbo.common.constants.CommonConstants.APPLICATION_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.CHECK_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.CLUSTER_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
-import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
 
 /**
  * Apollo implementation, https://github.com/ctripcorp/apollo
@@ -76,6 +71,8 @@ public class ApolloDynamicConfiguration implements DynamicConfiguration {
     private ConfigFile dubboConfigFile;
     private ConcurrentMap<String, ApolloListener> listeners = new ConcurrentHashMap<>();
 
+    private String apolloNamespace;
+
     ApolloDynamicConfiguration(URL url) {
         this.url = url;
         // Instead of using Dubbo's configuration, I would suggest use the original configuration method Apollo provides.
@@ -97,7 +94,7 @@ public class ApolloDynamicConfiguration implements DynamicConfiguration {
         }
 
         String namespace = url.getParameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP);
-        String apolloNamespace = StringUtils.isEmpty(namespace) ? url.getParameter(GROUP_KEY, DEFAULT_GROUP) : namespace;
+        apolloNamespace = StringUtils.isEmpty(namespace) ? url.getParameter(GROUP_KEY, DEFAULT_GROUP) : namespace;
         dubboConfig = ConfigService.getConfig(apolloNamespace);
         dubboConfigFile = ConfigService.getConfigFile(apolloNamespace, ConfigFileFormat.Properties);
 
@@ -154,14 +151,12 @@ public class ApolloDynamicConfiguration implements DynamicConfiguration {
 
     @Override
     public String getConfig(String key, String group, long timeout) throws IllegalStateException {
-        if (StringUtils.isNotEmpty(group)) {
-            if (group.equals(url.getParameter(APPLICATION_KEY))) {
-                return ConfigService.getAppConfig().getProperty(key, null);
-            } else {
-                return ConfigService.getConfig(group).getProperty(key, null);
-            }
+
+        if (StringUtils.isEmpty(group) || group.equals(apolloNamespace)) {
+            return dubboConfig.getProperty(key, null);
         }
-        return dubboConfig.getProperty(key, null);
+
+        return ConfigService.getConfig(group).getProperty(key, null);
     }
 
     /**
@@ -178,10 +173,11 @@ public class ApolloDynamicConfiguration implements DynamicConfiguration {
      */
     @Override
     public String getProperties(String key, String group, long timeout) throws IllegalStateException {
-        if (StringUtils.isEmpty(group)) {
+        if (StringUtils.isEmpty(group) || group.equals(apolloNamespace)) {
             return dubboConfigFile.getContent();
         }
-        if (group.equals(url.getParameter(APPLICATION_KEY))) {
+
+        if (key.equals(DEFAULT_DUBBO_PROPERTIES)) {
             return ConfigService.getConfigFile(APOLLO_APPLICATION_KEY, ConfigFileFormat.Properties).getContent();
         }
 
@@ -200,6 +196,12 @@ public class ApolloDynamicConfiguration implements DynamicConfiguration {
     @Override
     public String getInternalProperty(String key) {
         return dubboConfig.getProperty(key, null);
+    }
+
+    @Override
+    public boolean publishConfig(String key, String group, String content) throws UnsupportedOperationException {
+        //不支持，消除异常
+        return false;
     }
 
     /**
