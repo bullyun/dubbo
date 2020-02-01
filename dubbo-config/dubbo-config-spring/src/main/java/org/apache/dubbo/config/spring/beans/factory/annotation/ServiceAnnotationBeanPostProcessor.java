@@ -110,7 +110,8 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
 
         // @since 2.7.5
-        registerBeans(registry, DubboBootstrapApplicationListener.class);
+        //导致重复注册异常
+        //registerBeans(registry, DubboBootstrapApplicationListener.class);
 
         Set<String> resolvedPackagesToScan = resolvePackagesToScan(packagesToScan);
 
