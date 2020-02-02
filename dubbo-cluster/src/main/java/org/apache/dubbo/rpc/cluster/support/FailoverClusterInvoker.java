@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static java.lang.Math.max;
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_RETRIES;
 import static org.apache.dubbo.common.constants.CommonConstants.RETRIES_KEY;
 
@@ -58,15 +59,16 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> copyInvokers = invokers;
         checkInvokers(copyInvokers, invocation);
         String methodName = RpcUtils.getMethodName(invocation);
-        int len = getUrl().getMethodParameter(methodName, RETRIES_KEY, DEFAULT_RETRIES) + 1;
-        if (len <= 0) {
-            len = 1;
+        int retries = getUrl().getMethodParameter(methodName, RETRIES_KEY, DEFAULT_RETRIES) + 1;
+        if (retries <= 0) {
+            retries = 1;
         }
+        int limitRetries = 0;
         // retry loop.
         RpcException le = null; // last exception.
         List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyInvokers.size()); // invoked invokers.
-        Set<String> providers = new HashSet<String>(len);
-        for (int i = 0; i < len; i++) {
+        Set<String> providers = new HashSet<String>(retries);
+        for (int i = 0; i < max(retries, limitRetries); i++) {
             //Reselect before retry to avoid a change of candidate `invokers`.
             //NOTE: if `invokers` changed, then `invoked` also lose accuracy.
             if (i > 0) {
@@ -79,6 +81,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
             invoked.add(invoker);
             RpcContext.getContext().setInvokers((List) invoked);
             try {
+                limitRetries = 0;
                 Result result = invoker.invoke(invocation);
                 if (le != null && logger.isWarnEnabled()) {
                     logger.warn("Although retry the method " + methodName
@@ -91,6 +94,19 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             + " using the dubbo version " + Version.getVersion() + ". Last error is: "
                             + le.getMessage(), le);
                 }
+
+                //因为能力限制，可以重试其他服务器
+                if (result.hasException()
+                        && result.getException() instanceof RpcException
+                        && i < DEFAULT_RETRIES){
+                    RpcException rpcException = (RpcException) result.getException();
+                    if (rpcException.isLimitExceed()){
+                        le = rpcException;
+                        limitRetries = DEFAULT_RETRIES + 1;
+                        continue;
+                    }
+                }
+
                 return result;
             } catch (RpcException e) {
                 if (e.isBiz()) { // biz exception.
@@ -105,7 +121,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
         throw new RpcException(le.getCode(), "Failed to invoke the method "
                 + methodName + " in the service " + getInterface().getName()
-                + ". Tried " + len + " times of the providers " + providers
+                + ". Tried " + retries + " times of the providers " + providers
                 + " (" + providers.size() + "/" + copyInvokers.size()
                 + ") from the registry " + directory.getUrl().getAddress()
                 + " on the consumer " + NetUtils.getLocalHost() + " using the dubbo version "
