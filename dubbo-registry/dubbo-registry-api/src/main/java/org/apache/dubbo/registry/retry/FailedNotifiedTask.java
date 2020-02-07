@@ -19,11 +19,15 @@ package org.apache.dubbo.registry.retry;
 
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.timer.Timeout;
+import org.apache.dubbo.common.timer.Timer;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.registry.NotifyListener;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -35,10 +39,11 @@ public final class FailedNotifiedTask extends AbstractRetryTask {
 
     private final NotifyListener listener;
 
-    private final List<URL> urls = new CopyOnWriteArrayList<>();
+    private final Queue<List<URL>> urlsList = new ConcurrentLinkedQueue<>();
+    //private final List<URL> urls = new CopyOnWriteArrayList<>();
 
-    public FailedNotifiedTask(URL url, NotifyListener listener) {
-        super(url, null, NAME);
+    public FailedNotifiedTask(Timer timer, URL url, NotifyListener listener) {
+        super(timer, url, null, NAME);
         if (listener == null) {
             throw new IllegalArgumentException();
         }
@@ -49,19 +54,30 @@ public final class FailedNotifiedTask extends AbstractRetryTask {
         if (CollectionUtils.isEmpty(urls)) {
             return;
         }
-        this.urls.addAll(urls);
-    }
-
-    public void removeRetryUrl(List<URL> urls) {
-        this.urls.removeAll(urls);
+        urlsList.add(new ArrayList<>(urls));
+        active();
     }
 
     @Override
     protected void doRetry(URL url, FailbackRegistry registry, Timeout timeout) {
-        if (CollectionUtils.isNotEmpty(urls)) {
+        while (true) {
+            List<URL> urls = urlsList.peek() ;
+            if (urls == null){
+                break;
+            }
             listener.notify(urls);
-            urls.clear();
+
+            //一定要放在
+            urlsList.remove();
         }
-        reput(timeout, retryPeriod);
+    }
+
+    @Override
+    protected void onFinalFailed(URL url, FailbackRegistry registry, Timeout timeout){
+        urlsList.remove();
+        if (urlsList.isEmpty() == false){
+            //如果还有没回调的，继续
+            active();
+        }
     }
 }

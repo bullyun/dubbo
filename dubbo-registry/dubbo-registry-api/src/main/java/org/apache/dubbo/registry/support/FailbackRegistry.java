@@ -75,66 +75,49 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         retryTimer = new HashedWheelTimer(new NamedThreadFactory("DubboRegistryRetryTimer", true), retryPeriod, TimeUnit.MILLISECONDS, 128);
     }
 
-    public void removeFailedRegisteredTask(URL url) {
-        failedRegistered.remove(url);
-    }
-
-    public void removeFailedUnregisteredTask(URL url) {
-        failedUnregistered.remove(url);
-    }
-
-    public void removeFailedSubscribedTask(URL url, NotifyListener listener) {
-        Holder h = new Holder(url, listener);
-        failedSubscribed.remove(h);
-    }
-
-    public void removeFailedUnsubscribedTask(URL url, NotifyListener listener) {
-        Holder h = new Holder(url, listener);
-        failedUnsubscribed.remove(h);
-    }
-
-    public void removeFailedNotifiedTask(URL url, NotifyListener listener) {
-        Holder h = new Holder(url, listener);
-        failedNotified.remove(h);
-    }
-
     private void addFailedRegistered(URL url) {
         FailedRegisteredTask oldOne = failedRegistered.get(url);
         if (oldOne != null) {
+            oldOne.active();
             return;
         }
-        FailedRegisteredTask newTask = new FailedRegisteredTask(url, this);
+        FailedRegisteredTask newTask = new FailedRegisteredTask(retryTimer, url, this);
         oldOne = failedRegistered.putIfAbsent(url, newTask);
         if (oldOne == null) {
             // never has a retry task. then start a new task for retry.
-            retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
+            newTask.active();
+        } else {
+            oldOne.active();
         }
     }
 
     private void removeFailedRegistered(URL url) {
         FailedRegisteredTask f = failedRegistered.remove(url);
         if (f != null) {
-            f.cancel();
+            f.stop();
         }
     }
 
     private void addFailedUnregistered(URL url) {
         FailedUnregisteredTask oldOne = failedUnregistered.get(url);
         if (oldOne != null) {
+            oldOne.active();
             return;
         }
-        FailedUnregisteredTask newTask = new FailedUnregisteredTask(url, this);
+        FailedUnregisteredTask newTask = new FailedUnregisteredTask(retryTimer, url, this);
         oldOne = failedUnregistered.putIfAbsent(url, newTask);
         if (oldOne == null) {
             // never has a retry task. then start a new task for retry.
-            retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
+            newTask.active();
+        } else {
+            oldOne.active();
         }
     }
 
     private void removeFailedUnregistered(URL url) {
         FailedUnregisteredTask f = failedUnregistered.remove(url);
         if (f != null) {
-            f.cancel();
+            f.stop();
         }
     }
 
@@ -142,13 +125,16 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         Holder h = new Holder(url, listener);
         FailedSubscribedTask oldOne = failedSubscribed.get(h);
         if (oldOne != null) {
+            oldOne.active();
             return;
         }
-        FailedSubscribedTask newTask = new FailedSubscribedTask(url, this, listener);
+        FailedSubscribedTask newTask = new FailedSubscribedTask(retryTimer, url, this, listener);
         oldOne = failedSubscribed.putIfAbsent(h, newTask);
         if (oldOne == null) {
             // never has a retry task. then start a new task for retry.
-            retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
+            newTask.active();
+        } else {
+            oldOne.active();
         }
     }
 
@@ -156,7 +142,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         Holder h = new Holder(url, listener);
         FailedSubscribedTask f = failedSubscribed.remove(h);
         if (f != null) {
-            f.cancel();
+            f.stop();
         }
         removeFailedUnsubscribed(url, listener);
         removeFailedNotified(url, listener);
@@ -166,13 +152,16 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         Holder h = new Holder(url, listener);
         FailedUnsubscribedTask oldOne = failedUnsubscribed.get(h);
         if (oldOne != null) {
+            oldOne.active();
             return;
         }
-        FailedUnsubscribedTask newTask = new FailedUnsubscribedTask(url, this, listener);
+        FailedUnsubscribedTask newTask = new FailedUnsubscribedTask(retryTimer, url, this, listener);
         oldOne = failedUnsubscribed.putIfAbsent(h, newTask);
         if (oldOne == null) {
             // never has a retry task. then start a new task for retry.
-            retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
+            newTask.active();
+        } else {
+            oldOne.active();
         }
     }
 
@@ -180,21 +169,25 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         Holder h = new Holder(url, listener);
         FailedUnsubscribedTask f = failedUnsubscribed.remove(h);
         if (f != null) {
-            f.cancel();
+            f.stop();
         }
     }
 
     private void addFailedNotified(URL url, NotifyListener listener, List<URL> urls) {
         Holder h = new Holder(url, listener);
-        FailedNotifiedTask newTask = new FailedNotifiedTask(url, listener);
+        FailedNotifiedTask oldOne = failedNotified.get(h);
+        if (oldOne != null) {
+            oldOne.addUrlToRetry(urls);
+            return;
+        }
+        FailedNotifiedTask newTask = new FailedNotifiedTask(retryTimer, url, listener);
         FailedNotifiedTask f = failedNotified.putIfAbsent(h, newTask);
         if (f == null) {
             // never has a retry task. then start a new task for retry.
             newTask.addUrlToRetry(urls);
-            retryTimer.newTimeout(newTask, retryPeriod, TimeUnit.MILLISECONDS);
         } else {
             // just add urls which needs retry.
-            newTask.addUrlToRetry(urls);
+            f.addUrlToRetry(urls);
         }
     }
 
@@ -202,7 +195,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         Holder h = new Holder(url, listener);
         FailedNotifiedTask f = failedNotified.remove(h);
         if (f != null) {
-            f.cancel();
+            f.stop();
         }
     }
 

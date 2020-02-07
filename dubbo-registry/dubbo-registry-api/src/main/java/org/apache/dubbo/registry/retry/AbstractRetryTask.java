@@ -40,6 +40,9 @@ public abstract class AbstractRetryTask implements TimerTask {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+
+    protected final Timer timer;
+
     /**
      * url for retry task
      */
@@ -69,54 +72,70 @@ public abstract class AbstractRetryTask implements TimerTask {
      * times of retry.
      * retry task is execute in single thread so that the times is not need volatile.
      */
-    private int times = 1;
+    private int failedTimes = 0;
 
-    private volatile boolean cancel;
 
-    AbstractRetryTask(URL url, FailbackRegistry registry, String taskName) {
-        if (url == null || StringUtils.isBlank(taskName)) {
+    private Timeout timeout = null;
+    private boolean state = false;
+
+    AbstractRetryTask(Timer timer, URL url, FailbackRegistry registry, String taskName) {
+        if (timer == null || url == null || StringUtils.isBlank(taskName)) {
             throw new IllegalArgumentException();
         }
+        this.timer = timer;
         this.url = url;
         this.registry = registry;
         this.taskName = taskName;
-        cancel = false;
         this.retryPeriod = url.getParameter(REGISTRY_RETRY_PERIOD_KEY, DEFAULT_REGISTRY_RETRY_PERIOD);
         this.retryTimes = url.getParameter(REGISTRY_RETRY_TIMES_KEY, DEFAULT_REGISTRY_RETRY_TIMES);
     }
 
-    public void cancel() {
-        cancel = true;
-    }
-
-    public boolean isCancel() {
-        return cancel;
-    }
-
-    protected void reput(Timeout timeout, long tick) {
-        if (timeout == null) {
-            throw new IllegalArgumentException();
-        }
-
-        Timer timer = timeout.timer();
-        if (timer.isStop() || timeout.isCancelled() || isCancel()) {
+    public synchronized void active(){
+        if (timer.isStop()){
             return;
         }
-        times++;
-        timer.newTimeout(timeout.task(), tick, TimeUnit.MILLISECONDS);
+        failedTimes = 0;
+        state = true;
+        startTimer(false);
+    }
+
+    public synchronized void stop(){
+        state = false;
+        stopTimer();
+    }
+
+    public synchronized boolean isStop(){
+        return state == false;
+    }
+
+    private synchronized void startTimer(boolean delay){
+        if (state == false){
+            return;
+        }
+        if (timeout == null){
+            timeout = timer.newTimeout(this, delay ? retryPeriod : 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private synchronized void stopTimer(){
+        timeout.cancel();
+        timeout = null;
     }
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled() || timeout.timer().isStop() || isCancel()) {
-            // other thread cancel this timeout or stop the timer.
-            return;
+        synchronized (this){
+            if (timeout != this.timeout){
+                return;
+            }
+            //代表这次触发已经结束，如果有新的过来，重新启动定时器
+            this.timeout = null;
+            if (timeout.isCancelled() || timeout.timer().isStop() || isStop()) {
+                // other thread cancel this timeout or stop the timer.
+                return;
+            }
         }
-        if (times > retryTimes) {
-            // reach the most times of retry.
-            logger.warn("Final failed to execute task " + taskName + ", url: " + url + ", retry " + retryTimes + " times.");
-            return;
-        }
+
         if (logger.isInfoEnabled()) {
             logger.info(taskName + " : " + url);
         }
@@ -125,9 +144,15 @@ public abstract class AbstractRetryTask implements TimerTask {
         } catch (Throwable t) { // Ignore all the exceptions and wait for the next retry
             logger.warn("Failed to execute task " + taskName + ", url: " + url + ", waiting for again, cause:" + t.getMessage(), t);
             // reput this task when catch exception.
-            reput(timeout, retryPeriod);
+            failedTimes++;
+            if (failedTimes < retryTimes){
+                startTimer(true);
+            } else {
+                onFinalFailed(url, registry, timeout);
+            }
         }
     }
 
     protected abstract void doRetry(URL url, FailbackRegistry registry, Timeout timeout);
+    protected void onFinalFailed(URL url, FailbackRegistry registry, Timeout timeout){ }
 }
