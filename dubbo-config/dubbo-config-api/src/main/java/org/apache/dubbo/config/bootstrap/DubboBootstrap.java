@@ -17,6 +17,7 @@
 package org.apache.dubbo.config.bootstrap;
 
 import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.config.Configuration;
 import org.apache.dubbo.common.config.Environment;
 import org.apache.dubbo.common.config.configcenter.DynamicConfiguration;
 import org.apache.dubbo.common.config.configcenter.wrapper.CompositeDynamicConfiguration;
@@ -90,6 +91,7 @@ import java.util.stream.Collectors;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.apache.dubbo.common.config.ConfigurationUtils.parseProperties;
+import static org.apache.dubbo.common.config.ConfigurationUtils.resolvePlaceholderProperties;
 import static org.apache.dubbo.common.config.configcenter.DynamicConfiguration.getDynamicConfiguration;
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_METADATA_STORAGE_TYPE;
 import static org.apache.dubbo.common.constants.CommonConstants.REMOTE_METADATA_STORAGE_TYPE;
@@ -812,6 +814,8 @@ public class DubboBootstrap extends GenericEventListener {
             if (!configCenter.checkOrUpdateInited()) {
                 return null;
             }
+            Configuration configuration = environment.getConfiguration();
+
             DynamicConfiguration dynamicConfiguration = getDynamicConfiguration(configCenter.toUrl());
             String configContent = dynamicConfiguration.getProperties(configCenter.getConfigFile(), configCenter.getGroup());
 
@@ -825,8 +829,8 @@ public class DubboBootstrap extends GenericEventListener {
             }
             try {
                 environment.setConfigCenterFirst(configCenter.isHighestPriority());
-                environment.updateExternalConfigurationMap(parseProperties(configContent));
-                environment.updateAppExternalConfigurationMap(parseProperties(appConfigContent));
+                environment.updateExternalConfigurationMap(resolvePlaceholderProperties(parseProperties(configContent), configuration));
+                environment.updateAppExternalConfigurationMap(resolvePlaceholderProperties(parseProperties(appConfigContent), configuration));
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to parse configurations from Config Center.", e);
             }

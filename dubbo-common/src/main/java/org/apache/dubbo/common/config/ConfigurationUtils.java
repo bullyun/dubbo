@@ -85,4 +85,24 @@ public class ConfigurationUtils {
         return map;
     }
 
+    public static String resolvePlaceholder(String value, Configuration configuration) {
+        int start = value.indexOf("${");
+        int end = value.indexOf('}');
+        if ((start >= 0) && (end > start)) {
+            String key = value.substring(start + 2, end);
+            if (StringUtils.isNotEmpty(key)){
+                String value2 = (String)configuration.getProperty(key);
+                value2 = resolvePlaceholder(value2, configuration);
+                value = value.substring(0, start) + value2 + value.substring(end + 1);
+            }
+        }
+        return value;
+    }
+
+    public static Map<String, String> resolvePlaceholderProperties(Map<String, String> properties, Configuration configuration) {
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            entry.setValue(resolvePlaceholder(entry.getValue(), configuration));
+        }
+        return properties;
+    }
 }
