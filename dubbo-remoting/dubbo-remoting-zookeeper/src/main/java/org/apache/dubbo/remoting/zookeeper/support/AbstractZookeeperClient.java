@@ -163,6 +163,8 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
     }
 
     protected void stateChanged(int state) {
+        //解决Zookeeper为无状态实例时，zookeeper清空重启，而客户端没重启时，persistentExistNodePath有而节点不存在时，不会再创建节点的问题
+        persistentExistNodePath.clear();
         for (StateListener sessionListener : getSessionListeners()) {
             sessionListener.stateChanged(state);
         }
