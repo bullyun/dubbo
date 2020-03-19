@@ -78,9 +78,9 @@ public @interface Reference {
     boolean check() default true;
 
     /**
-     * Wait service provider is real available during boot up, default value is false
+     * Wait service provider is available time during boot up, default value is 0 not waiting
      */
-    boolean await() default false;
+    int await() default 0;
 
     /**
      * Whether eager initialize the reference bean when all properties are set, default value is false

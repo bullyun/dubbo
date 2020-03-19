@@ -356,6 +356,25 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     + " to the consumer "
                     + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
         }
+
+        // is wait service available
+        if (shouldAwait()) {
+            try {
+                ServiceCheckUtil.waitProviderExport(invoker, getAwait());
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to await the status of the service "
+                        + interfaceName
+                        + ". No provider available for the service "
+                        + (group == null ? "" : group + "/")
+                        + interfaceName +
+                        (version == null ? "" : ":" + version)
+                        + " from the url "
+                        + invoker.getUrl()
+                        + " to the consumer "
+                        + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
+            }
+        }
+
         if (logger.isInfoEnabled()) {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
@@ -370,25 +389,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             metadataService.publishServiceDefinition(consumerURL);
         }
         // create service proxy
-        T porxy = (T) PROXY_FACTORY.getProxy(invoker);
-        // is wait service real available
-        if (shouldAwait()) {
-            try {
-                ServiceCheckUtil.waitProviderExport(porxy);
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to await the status of the service "
-                        + interfaceName
-                        + ". No provider real available for the service "
-                        + (group == null ? "" : group + "/")
-                        + interfaceName +
-                        (version == null ? "" : ":" + version)
-                        + " from the url "
-                        + invoker.getUrl()
-                        + " to the consumer "
-                        + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
-            }
-        }
-        return porxy;
+        return (T) PROXY_FACTORY.getProxy(invoker);
     }
 
     /**

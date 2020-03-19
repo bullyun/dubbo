@@ -3,7 +3,7 @@ package org.apache.dubbo.config.utils;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.config.ReferenceConfig;
-import org.apache.dubbo.rpc.service.EchoService;
+import org.apache.dubbo.rpc.Invoker;
 
 /**
  * @Author: weichangyu
@@ -14,29 +14,21 @@ import org.apache.dubbo.rpc.service.EchoService;
 public class ServiceCheckUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(ReferenceConfig.class);
-    /**
-     * wait service real available timeout 3 minutes
-     */
-    private static final int TIMEOUT = 180000;
 
     static WatchTimer timerLog = new WatchTimer();
 
-    public static <T> T waitProviderExport(T providerService) {
+    public static void waitProviderExport(Invoker invoker, int timeout) {
         long startTime = System.currentTimeMillis();
         while (true) {
             try {
-                // 强制转型为EchoService
-                EchoService echoService = (EchoService) providerService;
-                // 回声测试可用性
-                String str = (String)echoService.$echo("OK");
-                if (str.equals("OK")) {
-                    return providerService;
+                if (invoker.isAvailable()) {
+                    return;
                 }
             } catch (Exception e) {
             }
 
             if (timerLog.checkActive()) {
-                logger.warn("Wait " + providerService.getClass().getName() + " export!");
+                logger.warn("Wait " + invoker.getInterface().getTypeName() + " export!");
             }
 
             try {
@@ -45,18 +37,10 @@ public class ServiceCheckUtil {
                 logger.error("dubbo check provider service whether the available sleep exception: ", e);
             }
 
-            if (System.currentTimeMillis() - startTime > TIMEOUT) {
+            if (System.currentTimeMillis() - startTime > timeout) {
                 throw new IllegalStateException("wait service timeout");
             }
         }
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        long time = System.currentTimeMillis();
-        System.out.println(time);
-        Thread.sleep(180000);
-        long time2 = System.currentTimeMillis();
-        System.out.println(time2 - time);
     }
 
 }

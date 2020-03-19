@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Component("demoServiceComponent")
 public class DemoServiceComponent implements DemoService {
-    @Reference(check = false, await = true, retries = 0)
+    @Reference(check = false, await = 180000, retries = 0)
     private DemoService demoService;
 
     @Override

@@ -42,9 +42,9 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
     protected Boolean check;
 
     /**
-     * Wait service provider is real available during boot up, If it takes longer than 3 minutes, it will be fast fail
+     * Wait service provider is available time during boot up, If it takes timeout, it will be fast fail
      */
-    protected Boolean await;
+    protected int await;
 
     /**
      * Whether to eagle-init
@@ -101,11 +101,11 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
         this.check = check;
     }
 
-    public Boolean isAwait() {
+    public int getAwait() {
         return await;
     }
 
-    public void setAwait(Boolean await) {
+    public void setAwait(int await) {
         this.await = await;
     }
 
