@@ -32,6 +32,7 @@ import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.event.ReferenceConfigDestroyedEvent;
 import org.apache.dubbo.config.event.ReferenceConfigInitializedEvent;
 import org.apache.dubbo.config.utils.ConfigValidationUtils;
+import org.apache.dubbo.config.utils.ServiceCheckUtil;
 import org.apache.dubbo.event.Event;
 import org.apache.dubbo.event.EventDispatcher;
 import org.apache.dubbo.metadata.WritableMetadataService;
@@ -47,6 +48,7 @@ import org.apache.dubbo.rpc.model.ConsumerModel;
 import org.apache.dubbo.rpc.model.ServiceDescriptor;
 import org.apache.dubbo.rpc.model.ServiceRepository;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
+import org.apache.dubbo.rpc.service.EchoService;
 import org.apache.dubbo.rpc.service.GenericService;
 import org.apache.dubbo.rpc.support.ProtocolUtils;
 
@@ -368,7 +370,25 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             metadataService.publishServiceDefinition(consumerURL);
         }
         // create service proxy
-        return (T) PROXY_FACTORY.getProxy(invoker);
+        T porxy = (T) PROXY_FACTORY.getProxy(invoker);
+        // is wait service real available
+        if (shouldAwait()) {
+            try {
+                ServiceCheckUtil.waitProviderExport(porxy);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to await the status of the service "
+                        + interfaceName
+                        + ". No provider real available for the service "
+                        + (group == null ? "" : group + "/")
+                        + interfaceName +
+                        (version == null ? "" : ":" + version)
+                        + " from the url "
+                        + invoker.getUrl()
+                        + " to the consumer "
+                        + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
+            }
+        }
+        return porxy;
     }
 
     /**

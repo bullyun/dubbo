@@ -78,6 +78,11 @@ public @interface Reference {
     boolean check() default true;
 
     /**
+     * Wait service provider is real available during boot up, default value is false
+     */
+    boolean await() default false;
+
+    /**
      * Whether eager initialize the reference bean when all properties are set, default value is false
      */
     boolean init() default false;

@@ -98,6 +98,18 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
         return shouldCheck;
     }
 
+    public boolean shouldAwait() {
+        Boolean shouldAwait = isAwait();
+        if (shouldAwait == null && getConsumer() != null) {
+            shouldAwait = getConsumer().isAwait();
+        }
+        if (shouldAwait == null) {
+            // default false
+            shouldAwait = false;
+        }
+        return shouldAwait;
+    }
+
     public boolean shouldInit() {
         Boolean shouldInit = isInit();
         if (shouldInit == null && getConsumer() != null) {
