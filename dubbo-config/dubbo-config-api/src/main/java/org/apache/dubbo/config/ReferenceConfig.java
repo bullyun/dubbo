@@ -360,7 +360,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         // is wait service available
         if (shouldAwait()) {
             try {
-                ServiceCheckUtil.waitProviderExport(invoker, getAwait());
+                ServiceCheckUtil.waitProviderExport(invoker, shouldAwaitTime());
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to await the status of the service "
                         + interfaceName

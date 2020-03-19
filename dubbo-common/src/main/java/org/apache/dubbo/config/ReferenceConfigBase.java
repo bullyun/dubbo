@@ -99,7 +99,27 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
     }
 
     public boolean shouldAwait() {
-        return getAwait() > 0;
+        Boolean shouldAwait = isAwait();
+        if (shouldAwait == null && getConsumer() != null) {
+            shouldAwait = getConsumer().isCheck();
+        }
+        if (shouldAwait == null) {
+            // default false
+            shouldAwait = false;
+        }
+        return shouldAwait;
+    }
+
+    public int shouldAwaitTime() {
+        Integer shouldAwaitTime = getAwaitTime();
+        if (shouldAwaitTime == null && getConsumer() != null) {
+            shouldAwaitTime = getConsumer().getAwaitTime();
+        }
+        if (shouldAwaitTime == null) {
+            // default 3 minutes
+            shouldAwaitTime = 180000;
+        }
+        return shouldAwaitTime;
     }
 
     public boolean shouldInit() {
