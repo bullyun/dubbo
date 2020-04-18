@@ -34,6 +34,8 @@ import org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryNTimes;
+import org.apache.dubbo.state.DUBBO_STATE;
+import org.apache.dubbo.state.DubboBootstrapStatus;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
@@ -287,6 +289,12 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorZooke
             // watched event(Watcher.Event.EventType.None, .., path = null).
             if (event.getType() == Watcher.Event.EventType.None) {
                 return;
+            }
+
+            //等待start完成，避免死锁
+            while (DubboBootstrapStatus.getState() == DUBBO_STATE.ZERO ||
+                    DubboBootstrapStatus.getState() == DUBBO_STATE.INITED) {
+                Thread.sleep(100);
             }
 
             if (childListener != null) {

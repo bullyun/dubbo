@@ -70,6 +70,8 @@ import org.apache.dubbo.registry.client.ServiceInstance;
 import org.apache.dubbo.registry.support.AbstractRegistryFactory;
 import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.model.ApplicationModel;
+import org.apache.dubbo.state.DUBBO_STATE;
+import org.apache.dubbo.state.DubboBootstrapStatus;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -524,6 +526,8 @@ public class DubboBootstrap extends GenericEventListener {
         if (logger.isInfoEnabled()) {
             logger.info(NAME + " has been initialized!");
         }
+
+        DubboBootstrapStatus.setState(DUBBO_STATE.INITED);
     }
 
     private void checkGlobalConfigs() {
@@ -717,6 +721,8 @@ public class DubboBootstrap extends GenericEventListener {
             if (logger.isInfoEnabled()) {
                 logger.info(NAME + " has started.");
             }
+
+            DubboBootstrapStatus.setState(DUBBO_STATE.STARTED);
         }
         return this;
     }
@@ -994,6 +1000,7 @@ public class DubboBootstrap extends GenericEventListener {
     }
 
     public void destroy() {
+        DubboBootstrapStatus.setState(DUBBO_STATE.DESTROY);
         if (started.compareAndSet(true, false)
                 && destroyed.compareAndSet(false, true)) {
             unregisterServiceInstance();
