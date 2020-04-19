@@ -17,12 +17,12 @@ public class ServiceCheckUtil {
 
     static WatchTimer timerLog = new WatchTimer();
 
-    public static void waitProviderExport(Invoker invoker, int timeout) {
+    public static boolean waitProviderExport(Invoker invoker, int timeout) {
         long startTime = System.currentTimeMillis();
         while (true) {
             try {
                 if (invoker.isAvailable()) {
-                    return;
+                    return true;
                 }
             } catch (Exception e) {
             }
@@ -38,7 +38,7 @@ public class ServiceCheckUtil {
             }
 
             if (System.currentTimeMillis() - startTime > timeout) {
-                throw new IllegalStateException("wait service timeout");
+                return false;
             }
         }
     }

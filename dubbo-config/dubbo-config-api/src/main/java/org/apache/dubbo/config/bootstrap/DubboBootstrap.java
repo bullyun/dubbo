@@ -523,11 +523,11 @@ public class DubboBootstrap extends GenericEventListener {
 
         initEventListener();
 
+        DubboBootstrapStatus.setState(DUBBO_STATE.INITED);
+
         if (logger.isInfoEnabled()) {
             logger.info(NAME + " has been initialized!");
         }
-
-        DubboBootstrapStatus.setState(DUBBO_STATE.INITED);
     }
 
     private void checkGlobalConfigs() {
@@ -702,9 +702,14 @@ public class DubboBootstrap extends GenericEventListener {
     public DubboBootstrap start() {
         if (started.compareAndSet(false, true)) {
             initialize();
+
+            // 等待生产者
+            waitReferenceUseable();
+
             if (logger.isInfoEnabled()) {
                 logger.info(NAME + " is starting...");
             }
+
             // 1. export Dubbo Services
             exportServices();
 
@@ -922,6 +927,14 @@ public class DubboBootstrap extends GenericEventListener {
                     cache.get(rc);
                 }
             }
+        });
+    }
+
+    public void waitReferenceUseable() {
+        DubboBootstrapStatus.setState(DUBBO_STATE.WAIT);
+        configManager.getReferences().forEach(rc -> {
+            ReferenceConfig referenceConfig = (ReferenceConfig) rc;
+            referenceConfig.checkAwait();
         });
     }
 

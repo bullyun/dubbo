@@ -3,8 +3,9 @@ package org.apache.dubbo.state;
 public enum DUBBO_STATE {
     ZERO(0),
     INITED(1),
-    STARTED(2),
-    DESTROY(3);
+    WAIT(2),
+    STARTED(3),
+    DESTROY(4);
 
     private int state = 0;
 
@@ -20,8 +21,9 @@ public enum DUBBO_STATE {
         switch (state) {
             case 0:return ZERO;
             case 1:return INITED;
-            case 2:return STARTED;
-            case 3:return DESTROY;
+            case 2:return WAIT;
+            case 3:return STARTED;
+            case 4:return DESTROY;
             default:return ZERO;
         }
     }

@@ -357,24 +357,6 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
         }
 
-        // is wait service available
-        if (shouldAwait()) {
-            try {
-                ServiceCheckUtil.waitProviderExport(invoker, shouldAwaitTime());
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to await the status of the service "
-                        + interfaceName
-                        + ". No provider available for the service "
-                        + (group == null ? "" : group + "/")
-                        + interfaceName +
-                        (version == null ? "" : ":" + version)
-                        + " from the url "
-                        + invoker.getUrl()
-                        + " to the consumer "
-                        + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
-            }
-        }
-
         if (logger.isInfoEnabled()) {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
@@ -390,6 +372,27 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         }
         // create service proxy
         return (T) PROXY_FACTORY.getProxy(invoker);
+    }
+
+    public boolean waitForUseable(int timeout) {
+        return ServiceCheckUtil.waitProviderExport(invoker, timeout);
+    }
+
+    public void checkAwait() {
+        if (shouldAwait()) {
+            if (waitForUseable(shouldAwaitTime()) == false) {
+                throw new IllegalStateException("Failed to await the status of the service "
+                        + interfaceName
+                        + ". No provider available for the service "
+                        + (group == null ? "" : group + "/")
+                        + interfaceName +
+                        (version == null ? "" : ":" + version)
+                        + " from the url "
+                        + invoker.getUrl()
+                        + " to the consumer "
+                        + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion());
+            }
+        }
     }
 
     /**

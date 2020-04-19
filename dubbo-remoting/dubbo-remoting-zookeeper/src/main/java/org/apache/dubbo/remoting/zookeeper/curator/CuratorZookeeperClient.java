@@ -292,8 +292,8 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorZooke
             }
 
             //等待start完成，避免死锁
-            while (DubboBootstrapStatus.getState() == DUBBO_STATE.ZERO ||
-                    DubboBootstrapStatus.getState() == DUBBO_STATE.INITED) {
+            while ((DubboBootstrapStatus.getState() == DUBBO_STATE.ZERO) ||
+                    (DubboBootstrapStatus.getState() == DUBBO_STATE.INITED)) {
                 Thread.sleep(100);
             }
 
